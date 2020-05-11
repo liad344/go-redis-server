@@ -66,7 +66,11 @@ func handle(conn net.Conn , mux Mux) {
 		log.Error("Could not read form connection " , err)
 		return
 	}
+	log.Info(buf)
 	cmd := parseCmd(buf)
+	for _ ,a := range cmd.Args{
+		log.Info(string(a))
+	}
 	if h , ok := mux[string(cmd.Args[0])]; ok {
 		h(conn , cmd)
 	}else {

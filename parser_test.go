@@ -3,14 +3,13 @@ package main
 import (
 	"testing"
 )
-
-func parserTest (t *testing.B){
-	b := []byte("*5\\r\\n$3\\r\\nset\\r\\n$2\\r\\nyo\\r\\n$2\\r\\nyo\\r\\n$2\\r\\nex\\r\\n$1\\r\\n1\\r\\n\\")
+func TestGet (t *testing.T) {
+	var b = []byte{42, 50, 13, 10, 36, 51, 13, 10, 103, 101, 116, 13, 10, 36, 50, 13, 10, 121, 111, 13, 10}
 	cmd := parseCmd(b)
-	res := []string{"set" , "yo" , "yo" , "ex" , "1"}
+	res := []string{"get", "yo"}
 
-	for i , arg := range cmd.Args{
-		if string(arg) != res[i]{
+	for i, arg := range cmd.Args {
+		if string(arg) != res[i] {
 			t.Fail()
 		}
 	}
