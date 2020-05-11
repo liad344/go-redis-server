@@ -4,8 +4,6 @@ import (
 	log "github.com/sirupsen/logrus"
 	"io/ioutil"
 	"net"
-	"regexp"
-	"strconv"
 	"sync"
 	"time"
 )
@@ -76,31 +74,6 @@ func handle(conn net.Conn , mux Mux) {
 		return
 	}
 
-}
-	// *2\r\n$3\r\nget\r\n$2\r\nyo\r\n\ get (yo)
-//*1\r\n$4\r\nping\r\n\
-//*5\r\n$3\r\nset\r\n$2\r\nyo\r\n$2\r\nyo\r\n$2\r\nex\r\n$1\r\n1\r\n\ set(yo , yo , 1)
-func parseCmd(buf []byte)(C Command) {
-	C.Data = buf
-	//todo error handling here is gay AF
-	r , _ := regexp.Compile("\\*[1-9]\\r\\n\\$")
-	if loc := r.FindIndex(buf); loc != nil {
-		log.Info(loc[0]+1)
-		reqLen , _  := strconv.ParseInt(string(buf[loc[0]+1]) , 10 , 8)
-		C.Args = make([][]byte , reqLen)
-		ArgsRegex , _ :=  regexp.Compile("\\r\\n.*\\r\\n")
-		if argsIndexes := ArgsRegex.FindAllIndex(buf[loc[1]:] , -1); argsIndexes != nil {
-			for _ , index := range argsIndexes {
-				//log.Info("loc[1] " , loc[1] , " loc[0] ", loc[0])
-				start := loc[1] + index[0]
-				end := loc[1] + index[1]
-			//log.Info("Searching " , string(buf[loc[1]:]))
-			//	log.Info("index " , index , " val " , string(buf[start:end]))
-				C.Args = append(C.Args, buf[start+2:end-2])
-			}
-		}
-	}
-	return C
 }
 
 func readCmd(conn net.Conn) ([]byte , error) {
