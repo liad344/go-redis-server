@@ -15,7 +15,7 @@ type serverCfg struct {
 type Handler func (conn Conn, cmd Command)
 type key string
 
-type handleConnection func(conn net.Conn) bool
+type handleConnection func(conn Conn) bool
 type handleClosedConnection func(conn Conn, err error)
 type Mux map[string]Handler
 
@@ -42,7 +42,31 @@ func (s *Server) Init(){
 	s.mux.HandleFunc("get" , s.ins.Get)
 	s.mux.HandleFunc("del" , s.ins.Del)
 	s.mux.HandleFunc("ping" , s.ins.Ping)
+	ln, err := net.Listen("tcp", s.cfg.addr)
+	if err != nil {
+		log.Error(err)
+	}
+	s.ln = ln
 }
+
+func onConnectionClosed(conn Conn, err error) {
+
+}
+
+func onNewConnection(conn Conn) bool {
+
+}
+
+func NewServer() *Server {
+	return &Server{
+		cfg:   serverCfg{addr: ":8000"},
+		conns: make(map[*net.Conn]bool),
+		ln:    nil,
+		mux:   &Mux{},
+	}
+}
+
+
 func (m Mux) HandleFunc(cmd string, h Handler) {
 	if  _ , ok := m[cmd]; ok {
 		log.Error("Handler already exist")
@@ -51,7 +75,10 @@ func (m Mux) HandleFunc(cmd string, h Handler) {
 }
 
 func NewInstance() *Instance {
-	
+	return &Instance{
+		data: map[key]value{},
+		Mutex: sync.Mutex{},
+	}
 }
 
 func NewMux() *Mux {
@@ -78,15 +105,13 @@ func handle(conn net.Conn , mux Mux) {
 		log.Error("Could not read form connection " , err)
 		return
 	}
-	log.Info(buf)
 	cmd := parseCmd(buf)
-	for _ ,a := range cmd.Args{
-		log.Info(string(a))
-	}
+	c := Conn{conn}
 	if h , ok := mux[string(cmd.Args[0])]; ok {
-		h(conn , cmd)
+		h(c , cmd)
 	}else {
 		log.Error("No handler for " , string(cmd.Args[0]) , " command")
+		c.Conn.Close() //Should it be close?
 		return
 	}
 
