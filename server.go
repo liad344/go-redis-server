@@ -12,28 +12,16 @@ type serverCfg struct {
 	addr string
 }
 
-type Handler func (conn net.Conn, cmd Command)
+type Handler func (conn Conn, cmd Command)
 type key string
 
 type handleConnection func(conn net.Conn) bool
-type handleClosedConnection func(conn net.Conn, err error)
+type handleClosedConnection func(conn Conn, err error)
 type Mux map[string]Handler
 
-type Command struct {
-	Data []byte
-	Args [][]byte
+type Conn struct {
+	net.Conn
 }
-
-type value struct {
-	data []byte
-	ttl time.Duration
-}
-
-type Instance struct {
-	data map[key]value
-	sync.Mutex
-}
-
 type Server struct {
 	cfg serverCfg
 	conns   map[*net.Conn]bool
@@ -45,7 +33,31 @@ type Server struct {
 	ln      net.Listener
 }
 
+func (s *Server) Init(){
+	s.mux = NewMux()
+	s.ins = NewInstance()
+	s.accept = onNewConnection
+	s.closed = onConnectionClosed
+	s.mux.HandleFunc("set" , s.ins.Set)
+	s.mux.HandleFunc("get" , s.ins.Get)
+	s.mux.HandleFunc("del" , s.ins.Del)
+	s.mux.HandleFunc("ping" , s.ins.Ping)
+}
+func (m Mux) HandleFunc(cmd string, h Handler) {
+	if  _ , ok := m[cmd]; ok {
+		log.Error("Handler already exist")
+	}
+	m[cmd] = h
+}
 
+func NewInstance() *Instance {
+	
+}
+
+func NewMux() *Mux {
+	m := make(Mux)
+	return &m
+}
 func (s *Server) ListenAndServerRESP(){
 	log.Info("Serving connections")
 	for {
