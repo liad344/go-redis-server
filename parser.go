@@ -7,14 +7,6 @@ import (
 	_ "strconv"
 )
 
-const (
-	INT = ":"
-	SIMPLE_STRING = "+"
-	ERRORS = "-"
-	BULK_STRING = "$"
-	ARRAY = "*"
-)
-
  func parseCmd(buf []byte) (C Command) {
 	C.Data = buf
 	 r, ArgsRegex := regex()

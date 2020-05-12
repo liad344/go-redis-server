@@ -3,9 +3,6 @@ package main
 import (
 	log "github.com/sirupsen/logrus"
 	"strconv"
-
-	//"net"
-	//"strconv"
 	"sync"
 	"time"
 )
@@ -19,6 +16,7 @@ type Command struct {
 
 type value struct {
 	data []byte
+	redisType string
 	//deleteAfterTtl time.Duration
 }
 
@@ -30,14 +28,14 @@ type RedisInstance struct {
 
 
 func (i *RedisInstance) Ping(conn Conn, cmd Command) {
-	conn.WriteString("PONG")
-	log.Info("Ponged ip" , conn.RemoteAddr() )
+	conn.Write(STRING , []byte("PONG"))
+	log.Info("Ponged " , conn.RemoteAddr() )
 }
 
 
 func (i *RedisInstance) Del(conn Conn, cmd Command) {
 	if len(cmd.Args) < 2 {
-		conn.WriteString("ERR wrong number of arguments for '" + string(cmd.Args[0]) + "' command")
+		conn.Write(ERROR , []byte("Wrong number of arguments"))
 		return
 	}
 	i.Lock()
@@ -49,29 +47,27 @@ func (i *RedisInstance) Del(conn Conn, cmd Command) {
 
 func (i *RedisInstance) Get(conn Conn, cmd Command) {
 	if len(cmd.Args) < 2 {
-		conn.WriteString("Not enough arguments")
+		conn.Write(ERROR , []byte("Not enough arguments"))
 		return
 	}
-	// get yo
 	key := key(cmd.Args[1])
 	i.Lock()
 	val , ok := i.data[key]
 	i.Unlock()
 	if !ok {
-		conn.WriteString("Key not found")
+		conn.Write(ERROR , []byte("Key not found"))
 	} else {
-		conn.WriteString(string(val.data))
+		conn.Write( val.redisType , val.data )
 	}
-	log.Info("Got val " , string(val.data))
 	return
 }
 
 func (i *RedisInstance) Set(conn Conn, cmd Command) {
 	if len(cmd.Args) < 3 {
-		conn.WriteString("Not enough arguments")
+		conn.Write(ERROR , []byte("Not enough arguments"))
 		return
 	}
-	val := value{data:cmd.Args[2]}
+	val := value{data:cmd.Args[2] , redisType: STRING}
 	key := key(cmd.Args[1])
 	i.Lock()
 	// args[0] = set , args[1] = key , args[2] = val , args[3] = ex , args[4] = time
@@ -80,7 +76,7 @@ func (i *RedisInstance) Set(conn Conn, cmd Command) {
 		go i.deleteAfterTtl(key , cmd.Args[4])
 	}
 	i.Unlock()
-	conn.WriteString("OK")
+	conn.Write(STRING , []byte("OK"))
 	log.Info("Set " , string(cmd.Args[2]))
 	return
 }
