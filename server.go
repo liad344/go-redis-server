@@ -5,7 +5,6 @@ import (
 	"io/ioutil"
 	"net"
 	"sync"
-	"time"
 )
 
 type serverCfg struct {
@@ -55,6 +54,7 @@ func onConnectionClosed(conn Conn, err error) {
 
 func onNewConnection(conn Conn) bool {
 
+	return true
 }
 
 func NewServer() *Server {

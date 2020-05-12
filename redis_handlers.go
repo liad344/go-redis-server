@@ -3,8 +3,8 @@ package main
 import (
 	"encoding/binary"
 	log "github.com/sirupsen/logrus"
-	"net"
-	"strconv"
+	//"net"
+	//"strconv"
 	"sync"
 	"time"
 )
@@ -51,15 +51,17 @@ func (i *Instance) Get(conn Conn, cmd Command) {
 		conn.WriteString("Not enough arguments")
 		return
 	}
+	// get yo
+	key := key(cmd.Args[1])
 	i.Lock()
-	//get
+	val , ok := i.data[key]
 	i.Unlock()
-	//if !ok {
-	//	conn.WriteNull()
-	//} else {
-	//	conn.Wr(iteBulk(val.data)
-	//}
-	log.Info("Got val " , string(val))
+	if !ok {
+		conn.WriteNull()
+	} else {
+		conn.WriteString(string(val.data))
+	}
+	log.Info("Got val " , string(val.data))
 	return
 }
 
