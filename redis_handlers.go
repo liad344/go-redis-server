@@ -17,7 +17,7 @@ type Command struct {
 type value struct {
 	data []byte
 	redisType string
-	//deleteAfterTtl time.Duration
+	//ttl time.Duration
 }
 
 
@@ -39,10 +39,9 @@ func (i *RedisInstance) Del(conn Conn, cmd Command) {
 		return
 	}
 	i.Lock()
-	//del
+	delete(i.data , key(cmd.Args[1]))
 	i.Unlock()
 	log.Info("Deleted")
-	return
 }
 
 func (i *RedisInstance) Get(conn Conn, cmd Command) {
@@ -54,12 +53,11 @@ func (i *RedisInstance) Get(conn Conn, cmd Command) {
 	i.Lock()
 	val , ok := i.data[key]
 	i.Unlock()
-	if !ok {
-		conn.Write(ERROR , []byte("Key not found"))
-	} else {
-		conn.Write( val.redisType , val.data )
+	if ok {
+		conn.Write( val.redisType , val.data)
+		return
 	}
-	return
+	conn.Write(ERROR , []byte("Key not found"))
 }
 
 func (i *RedisInstance) Set(conn Conn, cmd Command) {
@@ -67,18 +65,22 @@ func (i *RedisInstance) Set(conn Conn, cmd Command) {
 		conn.Write(ERROR , []byte("Not enough arguments"))
 		return
 	}
-	val := value{data:cmd.Args[2] , redisType: STRING}
+	val := value{data:cmd.Args[2] , redisType: INT}
 	key := key(cmd.Args[1])
+
+	safeSet(i, key, val, cmd)
+
+	conn.Write(STRING, []byte("OK"))
+	return
+}
+
+func safeSet(i *RedisInstance, key key, val value, cmd Command) {
 	i.Lock()
-	// args[0] = set , args[1] = key , args[2] = val , args[3] = ex , args[4] = time
 	i.data[key] = val
-	if string(cmd.Args[3]) == "ex" || string(cmd.Args[3]) == "px"{
-		go i.deleteAfterTtl(key , cmd.Args[4])
+	if string(cmd.Args[3]) == "ex" || string(cmd.Args[3]) == "px" {
+		go i.deleteAfterTtl(key, cmd.Args[4])
 	}
 	i.Unlock()
-	conn.Write(STRING , []byte("OK"))
-	log.Info("Set " , string(cmd.Args[2]))
-	return
 }
 
 func (i *RedisInstance) deleteAfterTtl(k key, t []byte) {
