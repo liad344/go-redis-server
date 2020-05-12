@@ -1,8 +1,9 @@
 package main
 
 import (
-	"encoding/binary"
 	log "github.com/sirupsen/logrus"
+	"strconv"
+
 	//"net"
 	//"strconv"
 	"sync"
@@ -18,23 +19,23 @@ type Command struct {
 
 type value struct {
 	data []byte
-	//ttl time.Duration
+	//deleteAfterTtl time.Duration
 }
 
 
-type Instance struct {
+type RedisInstance struct {
 	data map[key]value
 	sync.Mutex
 }
 
 
-func (i *Instance) Ping(conn Conn, cmd Command) {
+func (i *RedisInstance) Ping(conn Conn, cmd Command) {
 	conn.WriteString("PONG")
 	log.Info("Ponged ip" , conn.RemoteAddr() )
 }
 
 
-func (i *Instance) Del(conn Conn, cmd Command) {
+func (i *RedisInstance) Del(conn Conn, cmd Command) {
 	if len(cmd.Args) < 2 {
 		conn.WriteString("ERR wrong number of arguments for '" + string(cmd.Args[0]) + "' command")
 		return
@@ -46,7 +47,7 @@ func (i *Instance) Del(conn Conn, cmd Command) {
 	return
 }
 
-func (i *Instance) Get(conn Conn, cmd Command) {
+func (i *RedisInstance) Get(conn Conn, cmd Command) {
 	if len(cmd.Args) < 2 {
 		conn.WriteString("Not enough arguments")
 		return
@@ -57,7 +58,7 @@ func (i *Instance) Get(conn Conn, cmd Command) {
 	val , ok := i.data[key]
 	i.Unlock()
 	if !ok {
-		conn.WriteNull()
+		conn.WriteString("Key not found")
 	} else {
 		conn.WriteString(string(val.data))
 	}
@@ -65,7 +66,7 @@ func (i *Instance) Get(conn Conn, cmd Command) {
 	return
 }
 
-func (i *Instance) Set(conn Conn, cmd Command) {
+func (i *RedisInstance) Set(conn Conn, cmd Command) {
 	if len(cmd.Args) < 3 {
 		conn.WriteString("Not enough arguments")
 		return
@@ -75,8 +76,8 @@ func (i *Instance) Set(conn Conn, cmd Command) {
 	i.Lock()
 	// args[0] = set , args[1] = key , args[2] = val , args[3] = ex , args[4] = time
 	i.data[key] = val
-	if string(cmd.Args[3]) == "ex" {
-		i.ttl(key , cmd.Args[4])
+	if string(cmd.Args[3]) == "ex" || string(cmd.Args[3]) == "px"{
+		go i.deleteAfterTtl(key , cmd.Args[4])
 	}
 	i.Unlock()
 	conn.WriteString("OK")
@@ -84,9 +85,13 @@ func (i *Instance) Set(conn Conn, cmd Command) {
 	return
 }
 
-func (i *Instance) ttl(k key, t []byte) {
-	tInt := binary.BigEndian.Uint64(t)
-	<-time.After(time.Duration(tInt*1000000000))
+func (i *RedisInstance) deleteAfterTtl(k key, t []byte) {
+	tInt , err := strconv.ParseInt(string(t) , 10 , 8)
+	if err != nil{
+		log.Error("Could not parse ttl")
+	}
+	log.Info("deleting after " , time.Second * time.Duration(tInt))
+	<-time.After(time.Second * time.Duration(tInt))
 	delete(i.data , k )
 }
 

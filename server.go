@@ -23,7 +23,7 @@ type Conn struct {
 type Server struct {
 	cfg serverCfg
 	conns   map[*net.Conn]bool
-	ins    *Instance
+	ins    *RedisInstance
 	mux    *Mux
 	accept handleConnection
 	closed handleClosedConnection
@@ -73,8 +73,8 @@ func (m Mux) HandleFunc(cmd string, h Handler) {
 	m[cmd] = h
 }
 
-func NewInstance() *Instance {
-	return &Instance{
+func NewInstance() *RedisInstance {
+	return &RedisInstance{
 		data: map[key]value{},
 		Mutex: sync.Mutex{},
 	}
@@ -92,26 +92,36 @@ func (s *Server) ListenAndServerRESP(){
 			log.Error("Could not connect")
 		}
 		s.conns[&conn] = true
-		go handle(conn , *s.mux)
+		go handleClient(conn , *s.mux)
 	}
 }
 
-func handle(conn net.Conn , mux Mux) {
-	buf , err := readCmd(conn)
+func handleClient(conn net.Conn , mux Mux) {
+	for {
+		if !handle(conn, mux){
+			break
+		}
+	}
+}
+
+func handle(conn net.Conn, mux Mux) bool {
+	buf, err := readCmd(conn)
 	if err != nil {
-		log.Error("Could not read form connection " , err)
-		return
+		log.Error("Could not read form connection ", err)
+		conn.Close()
+		return false
 	}
 	cmd := parseCmd(buf)
 
 	c := Conn{conn}
-	if h , ok := mux[string(cmd.Args[0])]; ok {
-		h(c , cmd)
-	}else {
-		log.Error("No handler for " , string(cmd.Args[0]) , " command")
+	if h, ok := mux[string(cmd.Args[0])]; ok {
+		h(c, cmd)
+	} else {
+		log.Error("No handler for ", string(cmd.Args[0]), " command")
 		c.Conn.Close() //Should it be close?
-		return
+		return false
 	}
+	return true
 }
 
 func readCmd(conn net.Conn) (b []byte ,err error) {
