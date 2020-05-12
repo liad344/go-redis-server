@@ -2,7 +2,6 @@ package main
 
 import (
 	log "github.com/sirupsen/logrus"
-	"io/ioutil"
 	"net"
 	"sync"
 )
@@ -94,8 +93,6 @@ func (s *Server) ListenAndServerRESP(){
 		}
 		s.conns[&conn] = true
 		go handle(conn , *s.mux)
-
-
 	}
 }
 
@@ -106,6 +103,7 @@ func handle(conn net.Conn , mux Mux) {
 		return
 	}
 	cmd := parseCmd(buf)
+
 	c := Conn{conn}
 	if h , ok := mux[string(cmd.Args[0])]; ok {
 		h(c , cmd)
@@ -114,9 +112,10 @@ func handle(conn net.Conn , mux Mux) {
 		c.Conn.Close() //Should it be close?
 		return
 	}
-
 }
 
-func readCmd(conn net.Conn) ([]byte , error) {
-	return ioutil.ReadAll(conn)
+func readCmd(conn net.Conn) (b []byte ,err error) {
+	b = make([]byte , 1024)
+	_ , err = conn.Read(b)
+	return b , err
 }
