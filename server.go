@@ -125,7 +125,7 @@ func handle(conn net.Conn, mux Mux) bool {
 }
 
 func readCmd(conn net.Conn) (b []byte ,err error) {
-	b = make([]byte , 1024)
+	b =  make([]byte , 1024)
 	_ , err = conn.Read(b)
 	return b , err
 }
