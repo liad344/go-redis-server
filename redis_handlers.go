@@ -53,6 +53,7 @@ func (i *RedisInstance) Get(conn Conn, cmd Command) {
 		conn.Close()
 		return
 	}
+
 	conn.Write(ERROR, []byte("Key not found"))
 	conn.Close()
 }
