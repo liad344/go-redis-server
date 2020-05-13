@@ -50,12 +50,10 @@ func (i *RedisInstance) Get(conn Conn, cmd Command) {
 	i.Unlock()
 	if ok {
 		conn.Write(val.redisType, val.data)
-		conn.Close()
 		return
 	}
 
 	conn.Write(ERROR, []byte("Key not found"))
-	conn.Close()
 }
 
 func (i *RedisInstance) Set(conn Conn, cmd Command) {
@@ -69,7 +67,6 @@ func (i *RedisInstance) Set(conn Conn, cmd Command) {
 	safeSet(i, key, val, cmd)
 
 	conn.Write(STRING, []byte("OK"))
-	conn.Close()
 	return
 }
 
