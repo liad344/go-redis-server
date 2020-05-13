@@ -2,6 +2,7 @@ package main
 
 import (
 	log "github.com/sirupsen/logrus"
+	"net"
 	"regexp"
 	"strconv"
 	_ "strconv"
@@ -46,5 +47,12 @@ func regex() (*regexp.Regexp, *regexp.Regexp) {
 		return nil, nil
 	}
 	return r, ArgsRegex
+}
+
+func readCmd(conn net.Conn) (b []byte  ,err error) {
+	b =  make([]byte , 64)
+	_ , err = conn.Read(b)
+	//log.Info(string(b) , " from ip " , conn.RemoteAddr())
+	return b , err
 }
 

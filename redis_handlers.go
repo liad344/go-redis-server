@@ -7,8 +7,6 @@ import (
 	"time"
 )
 
-
-
 type Command struct {
 	Data []byte
 	Args [][]byte
@@ -20,12 +18,10 @@ type value struct {
 	//ttl time.Duration
 }
 
-
 type RedisInstance struct {
 	data map[key]value
 	sync.Mutex
 }
-
 
 func (i *RedisInstance) Ping(conn Conn, cmd Command) {
 	conn.Write(STRING , []byte("PONG"))
@@ -65,7 +61,7 @@ func (i *RedisInstance) Set(conn Conn, cmd Command) {
 		conn.Write(ERROR , []byte("Not enough arguments"))
 		return
 	}
-	val := value{data:cmd.Args[2] , redisType: INT}
+	val := value{data:cmd.Args[2] , redisType: STRING}
 	key := key(cmd.Args[1])
 
 	safeSet(i, key, val, cmd)
@@ -77,18 +73,20 @@ func (i *RedisInstance) Set(conn Conn, cmd Command) {
 func safeSet(i *RedisInstance, key key, val value, cmd Command) {
 	i.Lock()
 	i.data[key] = val
-	if string(cmd.Args[3]) == "ex" || string(cmd.Args[3]) == "px" {
-		go i.deleteAfterTtl(key, cmd.Args[4])
+	if len(cmd.Args) > 3 {
+		go i.deleteAfterTtl(key, cmd.Args[3] , cmd.Args[4])
 	}
 	i.Unlock()
 }
 
-func (i *RedisInstance) deleteAfterTtl(k key, t []byte) {
-	tInt , err := strconv.ParseInt(string(t) , 10 , 8)
+func (i *RedisInstance) deleteAfterTtl(k key, ttl []byte, timeFormat []byte) {
+	if string(timeFormat) != "px" || string(timeFormat) != "ex" {
+		return
+	}
+	tInt , err := strconv.ParseInt(string(ttl) , 10 , 8)
 	if err != nil{
 		log.Error("Could not parse ttl")
 	}
-	log.Info("deleting after " , time.Second * time.Duration(tInt))
 	<-time.After(time.Second * time.Duration(tInt))
 	delete(i.data , k )
 }
