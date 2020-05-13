@@ -76,6 +76,7 @@ func safeSet(i *RedisInstance, key key, val value, cmd Command) {
 	if len(cmd.Args) > 3 {
 		go i.deleteAfterTtl(key, cmd.Args[3], cmd.Args[4])
 	}
+
 	i.Unlock()
 }
 
