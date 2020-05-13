@@ -2,7 +2,6 @@ package main
 
 import (
 	log "github.com/sirupsen/logrus"
-	"go.uber.org/zap"
 	"io"
 	"net"
 	"runtime"
@@ -26,14 +25,15 @@ type Server struct {
 	accept handleConnection
 	closed handleClosedConnection
 
-	ln     net.Listener
-	logger *zap.SugaredLogger
+	ln net.Listener
+	//logger *zap.SugaredLogger
 }
 
 func (s *Server) Init() {
 	s.mux = NewMux()
 	s.ins = NewInstance()
 	s.initConfig()
+	log.Info(s.cfg)
 	s.accept = onNewConnection
 	s.closed = onConnectionClosed
 	s.mux.HandleFunc("set", s.ins.Set)
@@ -45,8 +45,8 @@ func (s *Server) Init() {
 		log.Error(err)
 	}
 	s.ln = ln
-	logger, _ := zap.NewProduction()
-	s.logger = logger.Sugar()
+	//logger, _ := zap.NewProduction()
+	//s.logger = logger.Sugar()
 
 }
 
@@ -61,7 +61,7 @@ func onNewConnection(conn Conn) bool {
 
 func NewServer() *Server {
 	return &Server{
-		cfg:   serverCfg{addr: ":8000"},
+		cfg:   serverCfg{},
 		conns: make(map[*net.Conn]bool),
 		ln:    nil,
 		mux:   &Mux{},
@@ -96,7 +96,7 @@ func (s *Server) ListenAndServerRESP() {
 		if err != nil {
 			log.Error("Could not connect")
 		}
-		if i++; i <= runtime.GOMAXPROCS(4) {
+		if i++; i <= runtime.GOMAXPROCS(s.cfg.maxGoRoutines) {
 			go handleClient(conn, *s.mux)
 			i--
 		}
@@ -122,8 +122,9 @@ func handle(conn net.Conn, mux Mux) bool {
 		return false
 	}
 	if len(buff) == 0 || err == io.EOF {
-		return false
+		return open
 	}
+
 	cmd := parseCmd(buff)
 	c := Conn{conn}
 	if h, ok := mux[strings.ToLower(string(cmd.Args[0]))]; ok {
@@ -132,5 +133,5 @@ func handle(conn net.Conn, mux Mux) bool {
 		log.Error("No handler for ", string(cmd.Args[0]), " command")
 		return false
 	}
-	return true
+	return open
 }
