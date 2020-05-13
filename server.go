@@ -2,7 +2,9 @@ package main
 
 import (
 	log "github.com/sirupsen/logrus"
+	"io"
 	"net"
+	"runtime"
 	"strings"
 	"sync"
 )
@@ -92,8 +94,9 @@ func (s *Server) ListenAndServerRESP(){
 		if err != nil {
 			log.Error("Could not connect")
 		}
-		//s.conns[&conn] = true
-		go handleClient(conn , *s.mux)
+		if i++ ; i <= runtime.GOMAXPROCS(100){
+			go handleClient(conn , *s.mux)
+		}
 	}
 }
 
@@ -109,15 +112,16 @@ func handleClient(conn net.Conn , mux Mux) {
 		log.Error("Could not close connection " ,err)
 	}
 }
-
 func handle(conn net.Conn, mux Mux) bool {
-	buf, err := readCmd(conn)
-	if err != nil {
+	buff, err := readCmd(conn)
+	if err != nil && err != io.EOF {
 		log.Error("Could  not read form connection ", err)
 		return false
 	}
-	cmd := parseCmd(buf)
-
+	if len(buff) == 0 || err == io.EOF {
+		return true
+	}
+	cmd := parseCmd(buff)
 	c := Conn{conn}
 	if h, ok := mux[strings.ToLower(string(cmd.Args[0]))]; ok {
 		h(c, cmd)

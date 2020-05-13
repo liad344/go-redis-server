@@ -6,7 +6,7 @@ import (
 )
 
 func main(){
-	defer profile.Start(profile.CPUProfile).Stop()
+	defer profile.Start(profile.ProfilePath(".")).Stop()
 	s := NewServer()
 	s.Init()
 

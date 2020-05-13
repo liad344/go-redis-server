@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	log "github.com/sirupsen/logrus"
 	"net"
 	"regexp"
@@ -48,11 +49,21 @@ func regex() (*regexp.Regexp, *regexp.Regexp) {
 	}
 	return r, ArgsRegex
 }
+const BuffSize = 64
 
 func readCmd(conn net.Conn) (b []byte  ,err error) {
-	b =  make([]byte , 64)
-	_ , err = conn.Read(b)
-	//log.Info(string(b) , " from ip " , conn.RemoteAddr())
-	return b , err
+	var buff bytes.Buffer
+	for  {
+		b = make([]byte , BuffSize)
+		n , err := conn.Read(b)
+		if n < BuffSize && n != 0{
+			buff.Write(b)
+			return buff.Bytes(), nil
+		}
+		if err != nil {
+			return nil, err
+		}
+		buff.Write(b)
+	}
 }
 

@@ -20,7 +20,6 @@ func (c *Conn) Write(prefix string , data []byte) {
 	if n != len(b) || err != nil {
 		log.Error("Could not write string " , err)
 	}
-
 }
 func (c *Conn) WriteBulk(s string) {
 }
