@@ -7,6 +7,8 @@ import (
 	"time"
 )
 
+type Handler func(conn Conn, cmd Command)
+
 type Command struct {
 	Data []byte
 	Args [][]byte
