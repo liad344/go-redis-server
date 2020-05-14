@@ -30,7 +30,6 @@ func (s *Server) Init() {
 	s.mux = NewMux()
 	s.ins = NewInstance()
 	s.initConfig()
-	log.Info("Using config: ", s.cfg)
 	s.mux.HandleFunc("set", s.ins.Set)
 	s.mux.HandleFunc("get", s.ins.Get)
 	s.mux.HandleFunc("del", s.ins.Del)
@@ -76,7 +75,7 @@ func NewMux() *Mux {
 var i int
 
 func (s *Server) ListenAndServerRESP() {
-	log.Info("Serving connections")
+	log.Info("Serving using config: ", s.cfg)
 	for {
 		conn, err := s.ln.Accept()
 		if err != nil {
