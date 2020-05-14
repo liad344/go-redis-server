@@ -4,7 +4,6 @@ import (
 	"bytes"
 	log "github.com/sirupsen/logrus"
 	"net"
-	"regexp"
 	"strconv"
 	_ "strconv"
 )
@@ -13,17 +12,17 @@ const BuffSize = 64
 
 func parseCmd(buff []byte) (C Command) {
 	C.Data = buff
-	if loc := fastIndex(buff); loc != nil {
-		numArgs, err := strconv.ParseInt(string(buff[loc[0]+1]), 10, 8)
+	if validRequest(buff[0:3]) {
+		numArgs, err := strconv.ParseInt(string(buff[1]), 10, 8)
 		if err != nil {
 			log.Error("Could not parse client request len ", err)
 			return
 		}
 		C.Args = make([][]byte, numArgs)
-		if argsIndexes := fastArgsIndex(buff[loc[1]:], int(numArgs)); argsIndexes != nil {
+		if argsIndexes := fastArgsIndex(buff[4:], int(numArgs)); argsIndexes != nil {
 			for _, index := range argsIndexes {
-				start := loc[1] + index[0]
-				end := loc[1] + index[1]
+				start := 4 + index[0]
+				end := 4 + index[1]
 				C.Args = append(C.Args, buff[start:end])
 			}
 		}
@@ -31,18 +30,12 @@ func parseCmd(buff []byte) (C Command) {
 	return C
 }
 
-func fastIndex(buff []byte) []int {
-	if buff[0] != '*' {
-		return nil
+func validRequest(buff []byte) bool {
+	//First 4 bytes from client will always look the same
+	if _, err := strconv.Atoi(string(buff[1])); err == nil && buff[0] == '*' && bytes.Equal(buff[2:3], []byte{'\r', '\n'}) {
+		return true
 	}
-	if !valid.IsInt(string(buff[1])) {
-		return nil
-	}
-	if buff[2] != '\r' && buff[3] != 'n' && buff[4] != '$' {
-		return nil
-	}
-
-	return []int{0, 4}
+	return false
 }
 
 func fastArgsIndex(buff []byte, numArgs int) [][]int {
