@@ -22,7 +22,6 @@ func (s *Server) initConfig() {
 		log.Error("Could not load config, using default ", err)
 	}
 	err := Unmarshal(&s.cfg)
-	log.Info(s.cfg)
 	if err != nil {
 		log.Error("Could not load config, using default ", err)
 	}

@@ -30,7 +30,7 @@ func (s *Server) Init() {
 	s.mux = NewMux()
 	s.ins = NewInstance()
 	s.initConfig()
-	log.Info(s.cfg)
+	log.Info("Using config: ", s.cfg)
 	s.mux.HandleFunc("set", s.ins.Set)
 	s.mux.HandleFunc("get", s.ins.Get)
 	s.mux.HandleFunc("del", s.ins.Del)
