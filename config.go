@@ -21,7 +21,7 @@ func (s *Server) initConfig() {
 	SetDefault("maxGoRoutine", runtime.GOMAXPROCS(0))
 
 	if err := ReadInConfig(); err != nil {
-		log.Error("Could not load config, using default ", err)
+		//log.Error("Could not load config, using default ", err)
 	}
 	err := Unmarshal(&s.cfg)
 	if err != nil {
