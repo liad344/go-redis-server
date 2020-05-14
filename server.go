@@ -2,6 +2,7 @@ package main
 
 import (
 	log "github.com/sirupsen/logrus"
+	"go.uber.org/zap"
 	"io"
 	"net"
 	"runtime"
@@ -9,8 +10,6 @@ import (
 	"sync"
 )
 
-type handleClosedConnection func(conn Conn, err error)
-type handleConnection func(conn Conn) bool
 type Mux map[string]Handler
 type key string
 
@@ -18,24 +17,21 @@ type Conn struct {
 	net.Conn
 }
 type Server struct {
-	cfg    serverCfg
-	conns  map[*net.Conn]bool
-	ins    *RedisInstance
-	mux    *Mux
-	accept handleConnection
-	closed handleClosedConnection
+	cfg   serverCfg
+	conns map[*net.Conn]bool
+	ins   *RedisInstance
+	mux   *Mux
 
-	ln net.Listener
-	//logger *zap.SugaredLogger
+	ln     net.Listener
+	logger *zap.SugaredLogger
 }
 
 func (s *Server) Init() {
 	s.mux = NewMux()
 	s.ins = NewInstance()
 	s.initConfig()
+	s.cfg.addr = ":8000"
 	log.Info(s.cfg)
-	s.accept = onNewConnection
-	s.closed = onConnectionClosed
 	s.mux.HandleFunc("set", s.ins.Set)
 	s.mux.HandleFunc("get", s.ins.Get)
 	s.mux.HandleFunc("del", s.ins.Del)
@@ -48,15 +44,6 @@ func (s *Server) Init() {
 	//logger, _ := zap.NewProduction()
 	//s.logger = logger.Sugar()
 
-}
-
-func onConnectionClosed(conn Conn, err error) {
-
-}
-
-func onNewConnection(conn Conn) bool {
-
-	return true
 }
 
 func NewServer() *Server {
@@ -122,7 +109,7 @@ func handle(conn net.Conn, mux Mux) bool {
 		return false
 	}
 	if len(buff) == 0 || err == io.EOF {
-		return open
+		return false
 	}
 
 	cmd := parseCmd(buff)
@@ -133,5 +120,5 @@ func handle(conn net.Conn, mux Mux) bool {
 		log.Error("No handler for ", string(cmd.Args[0]), " command")
 		return false
 	}
-	return open
+	return true
 }
