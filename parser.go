@@ -12,13 +12,12 @@ const BuffSize = 64
 
 func parseCmd(buff []byte) (C Command) {
 	C.Data = buff
-	if validRequest(buff[0:3]) {
+	if validRequest(buff) {
 		numArgs, err := strconv.ParseInt(string(buff[1]), 10, 8)
 		if err != nil {
 			log.Error("Could not parse client request len ", err)
 			return
 		}
-		C.Args = make([][]byte, numArgs)
 		if argsIndexes := fastArgsIndex(buff[4:], int(numArgs)); argsIndexes != nil {
 			for _, index := range argsIndexes {
 				start := 4 + index[0]
@@ -32,7 +31,7 @@ func parseCmd(buff []byte) (C Command) {
 
 func validRequest(buff []byte) bool {
 	//First 4 bytes from client will always look the same
-	if _, err := strconv.Atoi(string(buff[1])); err == nil && buff[0] == '*' && bytes.Equal(buff[2:3], []byte{'\r', '\n'}) {
+	if _, err := strconv.Atoi(string(buff[1])); err == nil && buff[0] == '*' && bytes.Equal(buff[2:4], []byte{'\r', '\n'}) {
 		return true
 	}
 	return false
@@ -64,10 +63,6 @@ func fastArgsIndex(buff []byte, numArgs int) [][]int {
 		}
 	}
 	return indexes
-}
-
-func makeArgs(buf []byte, loc []int, C Command) {
-
 }
 
 func readCmd(conn net.Conn) (b []byte, err error) {
