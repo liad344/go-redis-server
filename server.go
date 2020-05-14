@@ -17,7 +17,7 @@ type Conn struct {
 	net.Conn
 }
 type Server struct {
-	cfg   serverCfg
+	cfg   ServerCfg
 	conns map[*net.Conn]bool
 	ins   *RedisInstance
 	mux   *Mux
@@ -30,13 +30,12 @@ func (s *Server) Init() {
 	s.mux = NewMux()
 	s.ins = NewInstance()
 	s.initConfig()
-	s.cfg.addr = ":8000"
 	log.Info(s.cfg)
 	s.mux.HandleFunc("set", s.ins.Set)
 	s.mux.HandleFunc("get", s.ins.Get)
 	s.mux.HandleFunc("del", s.ins.Del)
 	s.mux.HandleFunc("ping", s.ins.Ping)
-	ln, err := net.Listen("tcp", s.cfg.addr)
+	ln, err := net.Listen("tcp", s.cfg.Addr)
 	if err != nil {
 		log.Error(err)
 	}
@@ -48,7 +47,7 @@ func (s *Server) Init() {
 
 func NewServer() *Server {
 	return &Server{
-		cfg:   serverCfg{},
+		cfg:   ServerCfg{},
 		conns: make(map[*net.Conn]bool),
 		ln:    nil,
 		mux:   &Mux{},
@@ -83,7 +82,7 @@ func (s *Server) ListenAndServerRESP() {
 		if err != nil {
 			log.Error("Could not connect")
 		}
-		if i++; i <= runtime.GOMAXPROCS(s.cfg.maxGoRoutines) {
+		if i++; i <= runtime.GOMAXPROCS(s.cfg.MaxGoRoutines) {
 			go handleClient(conn, *s.mux)
 			i--
 		}
