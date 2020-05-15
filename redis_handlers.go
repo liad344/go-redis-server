@@ -8,6 +8,7 @@ import (
 )
 
 type Handler func(conn Conn, cmd Command)
+type FastHandler func(conn Conn, cmd Command) []byte
 
 type Command struct {
 	Data []byte
@@ -25,51 +26,77 @@ type RedisInstance struct {
 	sync.Mutex
 }
 
-func (i *RedisInstance) Ping(conn Conn, cmd Command) {
-	conn.Write(STRING, []byte("PONG"))
-	log.Info("Ponged ", conn.RemoteAddr())
-}
+//func (i *RedisInstance) Ping(conn Conn, cmd Command) {
+//	conn.Write(STRING, []byte("PONG"))
+//	log.Info("Ponged ", conn.RemoteAddr())
+//}
+//
+//func (i *RedisInstance) Del(conn Conn, cmd Command) {
+//	if len(cmd.Args) < 2 {
+//		conn.Write(ERROR, []byte("Wrong number of arguments"))
+//		return
+//	}
+//	i.Lock()
+//	delete(i.data, key(cmd.Args[1]))
+//	i.Unlock()
+//	log.Info("Deleted")
+//}
 
-func (i *RedisInstance) Del(conn Conn, cmd Command) {
-	if len(cmd.Args) < 2 {
-		conn.Write(ERROR, []byte("Wrong number of arguments"))
-		return
-	}
-	i.Lock()
-	delete(i.data, key(cmd.Args[1]))
-	i.Unlock()
-	log.Info("Deleted")
-}
+//func (i *RedisInstance) Get(conn Conn, cmd Command) {
+//	if len(cmd.Args) < 2 {
+//		conn.Write(ERROR, []byte("Not enough arguments"))
+//		return
+//	}
+//	key := key(cmd.Args[1])
+//	i.Lock()
+//	val, ok := i.data[key]
+//	i.Unlock()
+//	if ok {
+//		conn.Write(val.redisType, val.data)
+//		return
+//	}
+//
+//	conn.Write(ERROR, []byte("Key not found"))
+//}
 
-func (i *RedisInstance) Get(conn Conn, cmd Command) {
+//func (i *RedisInstance) Set(conn Conn, cmd Command) {
+//	if len(cmd.Args) < 3 {
+//		conn.Write(ERROR, []byte("Not enough arguments"))
+//		return
+//	}
+//	val := value{data: cmd.Args[2], redisType: STRING}
+//	key := key(cmd.Args[1])
+//
+//	safeSet(i, key, val, cmd)
+//
+//	conn.Write(STRING, []byte("OK"))
+//	return
+//}
+func (i *RedisInstance) FGet(conn Conn, cmd Command) []byte {
 	if len(cmd.Args) < 2 {
-		conn.Write(ERROR, []byte("Not enough arguments"))
-		return
+		return conn.FWrite(ERROR, []byte("Not enough arguments"))
 	}
 	key := key(cmd.Args[1])
 	i.Lock()
 	val, ok := i.data[key]
 	i.Unlock()
 	if ok {
-		conn.Write(val.redisType, val.data)
-		return
+		return conn.FWrite(val.redisType, val.data)
 	}
 
-	conn.Write(ERROR, []byte("Key not found"))
+	return []byte("Key not found")
 }
 
-func (i *RedisInstance) Set(conn Conn, cmd Command) {
+func (i *RedisInstance) FSet(conn Conn, cmd Command) []byte {
 	if len(cmd.Args) < 3 {
-		conn.Write(ERROR, []byte("Not enough arguments"))
-		return
+		return conn.FWrite(ERROR, []byte("Not enough arguments"))
 	}
 	val := value{data: cmd.Args[2], redisType: STRING}
 	key := key(cmd.Args[1])
 
 	safeSet(i, key, val, cmd)
 
-	conn.Write(STRING, []byte("OK"))
-	return
+	return conn.FWrite(STRING, []byte("OK"))
 }
 
 func safeSet(i *RedisInstance, key key, val value, cmd Command) {
@@ -78,7 +105,6 @@ func safeSet(i *RedisInstance, key key, val value, cmd Command) {
 	if len(cmd.Args) > 3 {
 		go i.deleteAfterTtl(key, cmd.Args[3], cmd.Args[4])
 	}
-
 	i.Unlock()
 }
 
