@@ -26,52 +26,6 @@ type RedisInstance struct {
 	sync.Mutex
 }
 
-//func (i *RedisInstance) Ping(conn Conn, cmd Command) {
-//	conn.Write(STRING, []byte("PONG"))
-//	log.Info("Ponged ", conn.RemoteAddr())
-//}
-//
-//func (i *RedisInstance) Del(conn Conn, cmd Command) {
-//	if len(cmd.Args) < 2 {
-//		conn.Write(ERROR, []byte("Wrong number of arguments"))
-//		return
-//	}
-//	i.Lock()
-//	delete(i.data, key(cmd.Args[1]))
-//	i.Unlock()
-//	log.Info("Deleted")
-//}
-
-//func (i *RedisInstance) Get(conn Conn, cmd Command) {
-//	if len(cmd.Args) < 2 {
-//		conn.Write(ERROR, []byte("Not enough arguments"))
-//		return
-//	}
-//	key := key(cmd.Args[1])
-//	i.Lock()
-//	val, ok := i.data[key]
-//	i.Unlock()
-//	if ok {
-//		conn.Write(val.redisType, val.data)
-//		return
-//	}
-//
-//	conn.Write(ERROR, []byte("Key not found"))
-//}
-
-//func (i *RedisInstance) Set(conn Conn, cmd Command) {
-//	if len(cmd.Args) < 3 {
-//		conn.Write(ERROR, []byte("Not enough arguments"))
-//		return
-//	}
-//	val := value{data: cmd.Args[2], redisType: STRING}
-//	key := key(cmd.Args[1])
-//
-//	safeSet(i, key, val, cmd)
-//
-//	conn.Write(STRING, []byte("OK"))
-//	return
-//}
 func (i *RedisInstance) FGet(conn Conn, cmd Command) []byte {
 	if len(cmd.Args) < 2 {
 		return conn.FWrite(ERROR, []byte("Not enough arguments"))
