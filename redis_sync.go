@@ -58,12 +58,10 @@ func (m *RedisMaster) syncFromMaster(instance *RedisInstance) {
 
 func (m *RedisMaster) syncToMaster(instance *RedisInstance) {
 	instance.Lock()
-	m.Lock()
 	for key, val := range instance.data {
 		if _, ok := m.data[key]; !ok {
 			m.data[key] = val
 		}
 	}
 	instance.Unlock()
-	m.Unlock()
 }

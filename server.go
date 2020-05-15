@@ -89,9 +89,11 @@ func (s *Server) ListenAndServerRESP() {
 func handleClient(conn net.Conn, mux Mux, instance *RedisInstance, m *RedisMaster) {
 	for {
 		if !handle(conn, mux, instance) {
-			//log.Info("SyncToMaster")
+			m.Lock()
 			m.syncToMaster(instance)
 			delete(m.ins, instance.UUID)
+			m.Unlock()
+			//log.Info("SyncToMaster")
 			//log.Info("Stopping connection w/ ", conn.RemoteAddr())
 			break
 		}
