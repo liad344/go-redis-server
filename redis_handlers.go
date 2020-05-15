@@ -7,7 +7,7 @@ import (
 	"time"
 )
 
-type Handler func(conn Conn, cmd Command)
+type Handler func(conn Conn, cmd Command, i *RedisInstance)
 
 type Command struct {
 	Data []byte
@@ -24,62 +24,65 @@ type RedisInstance struct {
 	data map[key]value
 	sync.Mutex
 }
-
-func (i *RedisInstance) Ping(conn Conn, cmd Command) {
-	conn.Write(STRING, []byte("PONG"))
-	log.Info("Ponged ", conn.RemoteAddr())
+type RedisMaster struct {
+	ins []*RedisInstance
+	RedisInstance
 }
 
-func (i *RedisInstance) Del(conn Conn, cmd Command) {
-	if len(cmd.Args) < 2 {
-		conn.Write(ERROR, []byte("Wrong number of arguments"))
-		return
+func (m *RedisMaster) NewInstance() *RedisInstance {
+	newIns := &RedisInstance{
+		data:  m.data,
+		Mutex: sync.Mutex{},
 	}
-	i.Lock()
-	delete(i.data, key(cmd.Args[1]))
-	i.Unlock()
-	log.Info("Deleted")
+	m.ins = append(m.ins, newIns)
+	return newIns
 }
 
-func (i *RedisInstance) Get(conn Conn, cmd Command) {
+func (m *RedisMaster) Get(conn Conn, cmd Command, i *RedisInstance) {
 	if len(cmd.Args) < 2 {
 		conn.Write(ERROR, []byte("Not enough arguments"))
 		return
 	}
 	key := key(cmd.Args[1])
-	i.Lock()
-	val, ok := i.data[key]
-	i.Unlock()
-	if ok {
-		conn.Write(val.redisType, val.data)
+	if get(conn, i, key) {
+		log.Info("Got before sync")
+		return
+	}
+	log.Info("SyncFromMaster")
+	m.syncFromMaster(i)
+
+	if get(conn, i, key) {
+		log.Info("Got After sync")
 		return
 	}
 
 	conn.Write(ERROR, []byte("Key not found"))
 }
 
-func (i *RedisInstance) Set(conn Conn, cmd Command) {
-	if len(cmd.Args) < 3 {
+func get(conn Conn, i *RedisInstance, key key) bool {
+	val, ok := i.data[key]
+	if ok {
+		conn.Write(val.redisType, val.data)
+		return true
+	}
+	return false
+}
+
+func (m *RedisMaster) Set(conn Conn, cmd Command, i *RedisInstance) {
+	l := len(cmd.Args)
+	if l < 3 {
 		conn.Write(ERROR, []byte("Not enough arguments"))
 		return
 	}
 	val := value{data: cmd.Args[2], redisType: STRING}
 	key := key(cmd.Args[1])
 
-	safeSet(i, key, val, cmd)
-
-	conn.Write(STRING, []byte("OK"))
-	return
-}
-
-func safeSet(i *RedisInstance, key key, val value, cmd Command) {
-	i.Lock()
 	i.data[key] = val
-	if len(cmd.Args) > 3 {
+	conn.Write(STRING, []byte("OK"))
+	if l > 3 {
 		go i.deleteAfterTtl(key, cmd.Args[3], cmd.Args[4])
 	}
-
-	i.Unlock()
+	return
 }
 
 func (i *RedisInstance) deleteAfterTtl(k key, ttl []byte, timeFormat []byte) {

@@ -1,2 +1,2 @@
-#addr = ":7999"
-#maxGoRoutines = 33
+addr = ":7999"
+maxGoRoutines = 3

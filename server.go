@@ -17,10 +17,10 @@ type Conn struct {
 	net.Conn
 }
 type Server struct {
-	cfg   ServerCfg
-	conns map[*net.Conn]bool
-	ins   *RedisInstance
-	mux   *Mux
+	cfg    ServerCfg
+	conns  map[*net.Conn]bool
+	master *RedisMaster
+	mux    *Mux
 
 	ln     net.Listener
 	logger *zap.SugaredLogger
@@ -28,12 +28,10 @@ type Server struct {
 
 func (s *Server) Init() {
 	s.mux = NewMux()
-	s.ins = NewInstance()
+	s.NewMaster()
 	s.initConfig()
-	s.mux.HandleFunc("set", s.ins.Set)
-	s.mux.HandleFunc("get", s.ins.Get)
-	s.mux.HandleFunc("del", s.ins.Del)
-	s.mux.HandleFunc("ping", s.ins.Ping)
+	s.mux.HandleFunc("set", s.master.Set)
+	s.mux.HandleFunc("get", s.master.Get)
 	ln, err := net.Listen("tcp", s.cfg.Addr)
 	if err != nil {
 		log.Error(err)
@@ -42,6 +40,11 @@ func (s *Server) Init() {
 	//logger, _ := zap.NewProduction()
 	//s.logger = logger.Sugar()
 
+}
+
+func (s *Server) NewMaster() {
+	s.master = &RedisMaster{ins: make([]*RedisInstance, s.cfg.MaxGoRoutines)}
+	s.master.data = map[key]value{}
 }
 
 func NewServer() *Server {
@@ -82,16 +85,18 @@ func (s *Server) ListenAndServerRESP() {
 			log.Error("Could not connect")
 		}
 		if i++; i <= runtime.GOMAXPROCS(s.cfg.MaxGoRoutines) {
-			go handleClient(conn, *s.mux)
+			go handleClient(conn, *s.mux, s.master.NewInstance(), s.master)
 			i--
 		}
 	}
 }
 
-func handleClient(conn net.Conn, mux Mux) {
+func handleClient(conn net.Conn, mux Mux, instance *RedisInstance, m *RedisMaster) {
 	for {
-		if !handle(conn, mux) {
-			log.Info("Stopping connection w/ ", conn.RemoteAddr())
+		if !handle(conn, mux, instance) {
+			log.Info("SyncToMaster")
+			m.syncToMaster(instance)
+			//log.Info("Stopping connection w/ ", conn.RemoteAddr())
 			break
 		}
 	}
@@ -100,7 +105,7 @@ func handleClient(conn net.Conn, mux Mux) {
 		log.Error("Could not close connection ", err)
 	}
 }
-func handle(conn net.Conn, mux Mux) bool {
+func handle(conn net.Conn, mux Mux, i *RedisInstance) bool {
 	buff, err := readCmd(conn)
 	if err != nil && err != io.EOF {
 		log.Error("Could  not read form connection ", err)
@@ -113,7 +118,7 @@ func handle(conn net.Conn, mux Mux) bool {
 	cmd := parseCmd(buff)
 	c := Conn{conn}
 	if h, ok := mux[strings.ToLower(string(cmd.Args[0]))]; ok {
-		h(c, cmd)
+		h(c, cmd, i)
 	} else {
 		log.Error("No handler for ", string(cmd.Args[0]), " command")
 		return false

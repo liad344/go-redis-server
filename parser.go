@@ -18,11 +18,12 @@ func parseCmd(buff []byte) (C Command) {
 			log.Error("Could not parse client request len ", err)
 			return
 		}
+		C.Args = make([][]byte, numArgs)
 		if argsIndexes := fastArgsIndex(buff[4:], int(numArgs)); argsIndexes != nil {
-			for _, index := range argsIndexes {
+			for ix, index := range argsIndexes {
 				start := 4 + index[0]
 				end := 4 + index[1]
-				C.Args = append(C.Args, buff[start:end])
+				C.Args[ix] = buff[start:end]
 			}
 		}
 	}
