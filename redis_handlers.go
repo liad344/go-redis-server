@@ -1,9 +1,9 @@
 package main
 
 import (
+	_ "github.com/go-kit/kit/util/conn"
 	log "github.com/sirupsen/logrus"
 	"strconv"
-	"sync"
 	"time"
 )
 
@@ -20,24 +20,6 @@ type value struct {
 	//ttl time.Duration
 }
 
-type RedisInstance struct {
-	data map[key]value
-	sync.Mutex
-}
-type RedisMaster struct {
-	ins []*RedisInstance
-	RedisInstance
-}
-
-func (m *RedisMaster) NewInstance() *RedisInstance {
-	newIns := &RedisInstance{
-		data:  m.data,
-		Mutex: sync.Mutex{},
-	}
-	m.ins = append(m.ins, newIns)
-	return newIns
-}
-
 func (m *RedisMaster) Get(conn Conn, cmd Command, i *RedisInstance) {
 	if len(cmd.Args) < 2 {
 		conn.Write(ERROR, []byte("Not enough arguments"))
@@ -48,7 +30,7 @@ func (m *RedisMaster) Get(conn Conn, cmd Command, i *RedisInstance) {
 		log.Info("Got before sync")
 		return
 	}
-	log.Info("SyncFromMaster")
+	//log.Info("SyncFromMaster")
 	m.syncFromMaster(i)
 
 	if get(conn, i, key) {

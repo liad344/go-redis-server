@@ -42,11 +42,6 @@ func (s *Server) Init() {
 
 }
 
-func (s *Server) NewMaster() {
-	s.master = &RedisMaster{ins: make([]*RedisInstance, s.cfg.MaxGoRoutines)}
-	s.master.data = map[key]value{}
-}
-
 func NewServer() *Server {
 	return &Server{
 		cfg:   ServerCfg{},
@@ -94,8 +89,9 @@ func (s *Server) ListenAndServerRESP() {
 func handleClient(conn net.Conn, mux Mux, instance *RedisInstance, m *RedisMaster) {
 	for {
 		if !handle(conn, mux, instance) {
-			log.Info("SyncToMaster")
+			//log.Info("SyncToMaster")
 			m.syncToMaster(instance)
+			delete(m.ins, instance.UUID)
 			//log.Info("Stopping connection w/ ", conn.RemoteAddr())
 			break
 		}
